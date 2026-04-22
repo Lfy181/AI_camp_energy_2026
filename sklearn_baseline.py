@@ -1,16 +1,12 @@
 """
 Sklearn GradientBoosting 基线：根据边界条件预测节点电价 A
 （纯sklearn实现，无需LightGBM/XGBoost）
-每次运行结果具有随机性
 """
 import pandas as pd
 import numpy as np
 import os
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error
-
-# 设置随机种子为 None，每次运行都不同
-np.random.seed(None)
 
 # ==================== 路径配置 ====================
 # 获取当前脚本所在目录
@@ -78,26 +74,19 @@ def generate_strategy(price_csv, save_path):
         best_tc = -1
         best_td = -1
 
-        # 随机生成搜索顺序，让结果具有随机性
-        tc_order = list(range(0, 81))
-        np.random.shuffle(tc_order)
-
         # 遍历所有可能的充电和放电开始时间
-        for tc in tc_order:  # 0 <= tc <= 80
+        for tc in range(0, 81):  # 0 <= tc <= 80
             # 充电时段价格总和
             charge_prices = prices[tc:tc+8]
             charge_cost = np.sum(charge_prices) * 1000  # 充电成本
 
-            td_order = list(range(tc + 8, 89))
-            np.random.shuffle(td_order)
-
-            for td in td_order:  # td >= tc + 8 且 td <= 88
+            for td in range(tc + 8, 89):  # td >= tc + 8 且 td <= 88
                 # 放电时段价格总和
                 discharge_prices = prices[td:td+8]
                 discharge_revenue = np.sum(discharge_prices) * 1000  # 放电收入
 
-                # 计算收益（加入微小随机扰动，打破平局）
-                profit = discharge_revenue - charge_cost + np.random.uniform(-0.01, 0.01)
+                # 计算收益
+                profit = discharge_revenue - charge_cost
 
                 if profit > best_profit:
                     best_profit = profit
@@ -192,15 +181,11 @@ if __name__ == '__main__':
 
     # ==================== 2. 模型训练 ====================
     print("\n[2/4] 训练模型...")
-    # 使用随机种子，每次运行结果不同
-    random_seed = np.random.randint(0, 2**31)
-    print(f"  本次随机种子: {random_seed}")
     model = GradientBoostingRegressor(
         n_estimators=200,
         learning_rate=0.05,
         max_depth=6,
         subsample=0.8,
-        random_state=random_seed,
         verbose=1
     )
     model.fit(X_train, y_train)
@@ -219,12 +204,6 @@ if __name__ == '__main__':
 
     X_test = df_test[all_features].values
     y_test_pred = model.predict(X_test)
-
-    # 加入随机噪声，让每次预测结果有差异
-    noise_std = np.std(y_test_pred) * 0.01  # 噪声幅度为预测值标准差的 1%
-    noise = np.random.normal(0, noise_std, size=y_test_pred.shape)
-    y_test_pred = y_test_pred + noise
-    print(f"  加入随机噪声 std={noise_std:.4f}")
 
     df_out = pd.DataFrame({'times': df_test['times'], target_col: y_test_pred})
     df_out.to_csv(output_price_path, index=False)
