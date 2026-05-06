@@ -121,13 +121,13 @@ class XGBoostModel(BaseModel):
         return rmse
     
     def fit(self, X_train: np.ndarray, y_train: np.ndarray, 
-            X_val: np.ndarray = None, y_val: np.ndarray = None):
+            X_val: np.ndarray = None, y_val: np.ndarray = None) -> Dict[str, float]:
         
         if self.use_hpo and OPTUNA_AVAILABLE and X_val is not None and y_val is not None:
             print("  Running Optuna hyperparameter optimization...")
             study = optuna.create_study(direction='minimize', study_name='xgb_hpo')
             study.optimize(lambda trial: self.objective(trial, X_train, y_train, X_val, y_val), 
-                          n_trials=50, show_progress_bar=True)
+                          n_trials=5, show_progress_bar=True)
             
             self.best_params = study.best_params
             self.best_params.update({
