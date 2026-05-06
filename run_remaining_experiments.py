@@ -1,58 +1,15 @@
+#!/usr/bin/env python
+import sys
 import os
-import time
-import pandas as pd
-import numpy as np
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from .base import DataLoader, ExperimentConfig, TARGET_COL
-from .features import FeatureEngineer
-from .models import ModelFactory
-from .strategies import StrategyGenerator
-from .evaluator import Evaluator
+from experiments.base import DataLoader, ExperimentConfig
+from experiments.features import FeatureEngineer
+from experiments.models import ModelFactory
+from experiments.strategies import StrategyGenerator
+from experiments.evaluator import Evaluator
 
-
-EXPERIMENT_CONFIGS = [
-    ExperimentConfig(
-        name='Exp0_Baseline_GB',
-        model_type='gb',
-        feature_level='basic',
-        use_hpo=False,
-        strategy_type='brute'
-    ),
-    ExperimentConfig(
-        name='Exp1_XGBoost_BasicFeatures',
-        model_type='xgboost',
-        feature_level='basic',
-        use_hpo=False,
-        strategy_type='brute'
-    ),
-    ExperimentConfig(
-        name='Exp2_LightGBM_BasicFeatures',
-        model_type='lightgbm',
-        feature_level='basic',
-        use_hpo=False,
-        strategy_type='brute'
-    ),
-    ExperimentConfig(
-        name='Exp3_RandomForest_BasicFeatures',
-        model_type='randomforest',
-        feature_level='basic',
-        use_hpo=False,
-        strategy_type='brute'
-    ),
-    ExperimentConfig(
-        name='Exp4_Ridge_BasicFeatures',
-        model_type='ridge',
-        feature_level='basic',
-        use_hpo=False,
-        strategy_type='brute'
-    ),
-    ExperimentConfig(
-        name='Exp5_MLP_BasicFeatures',
-        model_type='mlp',
-        feature_level='basic',
-        use_hpo=False,
-        strategy_type='brute'
-    ),
+REMAINING_EXPERIMENTS = [
     ExperimentConfig(
         name='Exp6_XGBoost_EnhancedFeatures',
         model_type='xgboost',
@@ -104,10 +61,8 @@ EXPERIMENT_CONFIGS = [
     )
 ]
 
-
-def run_single_experiment(config: ExperimentConfig, 
-                         data_loader: DataLoader,
-                         evaluator: Evaluator) -> None:
+def run_single_experiment(config, data_loader, evaluator):
+    import time
     print("\n" + "="*80)
     print(f"RUNNING: {config.name}".center(80))
     print("="*80)
@@ -125,7 +80,8 @@ def run_single_experiment(config: ExperimentConfig,
     feature_cols = [col for col in feature_cols if col in df_test_processed.columns]
     
     X = df_train_processed[feature_cols].values
-    y = df_train_processed[TARGET_COL].values
+    import pandas as pd
+    y = df_train_processed['A'].values
     
     split_idx = int(len(X) * 0.8)
     X_train, X_val = X[:split_idx], X[split_idx:]
@@ -174,22 +130,20 @@ def run_single_experiment(config: ExperimentConfig,
     
     print(f"\nCompleted in {duration:.2f}s")
 
-
-def run_all_experiments():
+def main():
     print("="*80)
-    print("ABLATION EXPERIMENTS: XGBoost + Feature Engineering + Optimization".center(80))
+    print("RUNNING REMAINING EXPERIMENTS".center(80))
     print("="*80)
     
     data_loader = DataLoader()
     
     if not data_loader.check_data_exists():
         print("ERROR: Data files not found!")
-        print("Please download data and place in data/ directory")
         return
     
     evaluator = Evaluator()
     
-    for config in EXPERIMENT_CONFIGS:
+    for config in REMAINING_EXPERIMENTS:
         try:
             run_single_experiment(config, data_loader, evaluator)
         except Exception as e:
@@ -200,8 +154,7 @@ def run_all_experiments():
     evaluator.print_summary()
     evaluator.save_results()
     
-    print("\nAll experiments completed!")
-
+    print("\nAll remaining experiments completed!")
 
 if __name__ == '__main__':
-    run_all_experiments()
+    main()
