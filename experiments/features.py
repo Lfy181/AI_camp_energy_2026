@@ -108,7 +108,7 @@ class FeatureEngineer:
         
         for col1, col2 in feature_pairs:
             df[f'{col1}_x_{col2}'] = df[col1] * df[col2]
-            df[f'{col1}_div_{col2}'] = df[col1] / (df[col2] + 1e-8)
+            df[f'{col1}_div_{col2}'] = df[col1] / (df[col2].abs() + 1e-8)
         
         return df
     
@@ -127,6 +127,13 @@ class FeatureEngineer:
                 df = self.add_rate_of_change_features(df)
                 df = self.add_aggregate_features(df, is_train)
                 df = self.add_interaction_features(df)
+                
+                # 清理无穷大和过大的值
+                numeric_cols = df.select_dtypes(include=[np.number]).columns
+                for col in numeric_cols:
+                    df[col] = df[col].replace([np.inf, -np.inf], np.nan)
+                    df[col] = df[col].clip(lower=-1e10, upper=1e10)
+                
                 df = df.dropna()
             
             enhanced_time_cols = [
